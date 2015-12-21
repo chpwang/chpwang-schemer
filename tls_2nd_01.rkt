@@ -380,6 +380,77 @@
           (else (cons (car l)
                       (rember s (cdr l)))))))
 
+;;;;;;; Chapter 6 - Shadows ;;;;;;;
+
+(define numbered?
+  (lambda (aexp)
+    (cond ((atom? aexp) (number? aexp))
+          (else
+           (and (numbered? (car aexp))
+                (numbered? (car (cdr (cdr aexp)))))))))
+
+;;(numbered? '((2 - (3 * 5)) + (3 * 2)))
+
+#|
+;;;;; old value function for arithmetic expresions like (3 + 3)
+(define value
+  (lambda (nexp)
+    (cond ((atom? nexp) nexp)
+          ((eq? (car (cdr nexp)) '+)
+           (+ (value (car nexp))
+              (value (car (cdr (cdr nexp))))))
+          ((eq? (car (cdr nexp)) '*)
+           (* (value (car nexp))
+              (value (car (cdr (cdr nexp))))))
+          (else
+           (expo (value (car nexp))
+                 (value (car (cdr (cdr nexp)))))))))
+|#
+
+(define operator
+  (lambda (aexp)
+    (car (cdr aexp))))
+
+(define 2nd-sub-exp
+  (lambda (aexp)
+    (car (cdr (cdr aexp)))))
+
+(define 1st-sub-exp
+  (lambda (aexp)
+    (car aexp)))
+
+
+(define value
+  (lambda (nexp)
+    (cond ((atom? nexp) nexp)
+          ((eq? (operator nexp) '+)
+           (+ (value (1st-sub-exp nexp))
+              (value (2nd-sub-exp nexp))))
+          ((eq? (operator nexp) '*)
+           (* (value (1st-sub-exp nexp))
+              (value (2nd-sub-exp nexp))))
+          (else
+           (expo (value (1st-sub-exp nexp))
+                 (value (2nd-sub-exp nexp)))))))
+
+
+(define sero?
+  (lambda (n)
+    (null? n)))
+
+(define edd1
+  (lambda (s)
+    (cons '() s)))
+
+(define zub1
+  (lambda (s)
+    (cdr s)))
+
+(define blus
+  (lambda (n1 n2)
+    (cond ((sero? n2) n1)
+          (else
+           (blus (edd1 n1) (zub1 n2))))))
 
 
 

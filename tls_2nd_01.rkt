@@ -14,7 +14,7 @@
   (lambda (a lat)
     (cond ((null? lat) #f)
           (else
-           (or (eq? a (car lat))
+           (or (equal? a (car lat))
                (member? a (cdr lat)))))))
 
 (define firsts
@@ -67,7 +67,7 @@
 (define multirember
   (lambda (a lat)
     (cond ((null? lat) '())
-          ((eq? a (car lat))
+          ((equal? a (car lat))
            (multirember a (cdr lat)))
           (else (cons (car lat)
                       (multirember a (cdr lat)))))))
@@ -452,9 +452,219 @@
           (else
            (blus (edd1 n1) (zub1 n2))))))
 
+;;;;;;; Chapter 7 - Friends and Relations ;;;;;;;
+#|
+
+(define noteqany?
+  (lambda (a lat)
+    (cond ((null? lat) #t)
+          ((eqan? a (car lat)) #f)
+          (else
+           (noteqany? a (cdr lat))))))
+
+(define set?
+  (lambda (lat)
+    (cond ((null? lat) #t)
+          (else
+           (and (noteqany? (car lat) (cdr lat))
+                (set? (cdr lat)))))))
+
+(define member?
+  (lambda (a lat)
+    (cond ((null? lat) #f)
+          (else
+           (or (equal? a (car lat))
+               (member? a (cdr lat)))))))
+
+|#
+
+(define set?
+  (lambda (lat)
+    (cond ((null? lat) #t)
+          ((member? (car lat) (cdr lat)) #f)
+          (else
+           (set? (cdr lat))))))
+;;;;;不要加入太多的逻辑层级，比如把 cond 的第二行并入 else 就多了一层 not: (and (not (member? ...)) ...);;;;;
+;(set? '(apple 3 peaches 4 9 pears plum))
+
+#|
+我的版本...
+(define makeset
+  (lambda (lat)
+    (cond ((null? lat) '())
+          ((member? (car lat) (cdr lat))
+           (cons (car lat)
+                 (makeset (multirember (car lat) (cdr lat)))))
+          (else
+           (cons (car lat)
+                 (makeset (cdr lat)))))))
+
+(makeset '(apple peach pear peach plum apple lemon peach))
+|#
+
+(define makeset
+  (lambda (lat)
+    (cond ((null? lat) '())
+          (else
+           (cons (car lat)
+                 (makeset
+                  (multirember (car lat) (cdr lat))))))))
+
+(define subset?
+  (lambda (set1 set2)
+    (cond ((null? set1) #t)
+          (else
+           (and (member? (car set1) set2)
+                (subset? (cdr set1) set2))))))
+
+;(subset? '(4 pounds of horseradish) '(four pounds chicken and 5 ounces horseradish))
+
+(define eqset?
+  (lambda (set1 set2)
+    (and (subset? set1 set2)
+         (subset? set2 set1))))
+
+;;(eqset? '(6 large chickens with wings) '(6 chickens with large wings))
+
+(define intersect?
+  (lambda (set1 set2)
+    (cond ((null? set1) #f)
+          (else
+           (or (member? (car set1) set2)
+               (intersect? (cdr set1) set2))))))
+
+(define intersect
+  (lambda (set1 set2)
+    (cond ((null? set1) '())
+          ((member? (car set1) set2)
+           (cons (car set1)
+                 (intersect (cdr set1) set2)))
+          (else
+           (intersect (cdr set1) set2)))))
+
+;(intersect '(stewed tomatoes and macaroni) '(macaroni and cheese))
+#|
+我的版本
+(define combine
+  (lambda (set1 set2)
+    (cond ((null? set1) set2)
+          (else
+           (cons (car set1)
+                 (combine (cdr set1) set2))))))
+
+(define union
+  (lambda (set1 set2)
+    (makeset (combine set1 set2))))
+|#
 
 
+(define union
+  (lambda (set1 set2)
+    (cond ((null? set1) set2)
+          ((member? (car set1) set2)
+           (union (cdr set1)
+                  set2))
+          (else
+           (cons (car set1)
+                 (union (cdr set1) set2))))))
 
+;(union '(stewed tomatoes and macaroni casserole) '(macaroni and cheese))
+
+(define xxx
+  (lambda (set1 set2)
+    (cond ((null? set1) '())
+          ((member? (car set1) set2)
+           (xxx (cdr set1)
+                  set2))
+          (else
+           (cons (car set1)
+                 (xxx (cdr set1) set2))))))
+
+(define intersectall
+  (lambda (l-set)
+    (cond ((null? (cdr l-set)) (car l-set))
+          (else
+           (intersect (car l-set)
+                      (intersectall (cdr l-set)))))))
+#|
+(intersectall '((a b c) (c a d e) (e f g h a b)))
+(intersectall '((6 pears and)
+                (3 peaches and 6 peppers)
+                (8 pears and 6 plums)
+                (and 6 prunes with some apples)))
+|#
+
+(define a-pair?
+  (lambda (s)
+    (cond ((atom? s) #f)
+          ((null? s) #f)
+          ((null? (cdr s)) #f)
+          ((null? (cdr (cdr s))) #t)
+          (else #f))))
+
+(define first
+  (lambda (p)
+    (car p)))
+
+(define second
+  (lambda (p)
+    (car (cdr p))))
+
+(define build
+  (lambda (s1 s2)
+    (cons s1
+          (cons s2 '()))))
+
+(define third
+  (lambda (l)
+    (car (cdr (cdr l)))))
+
+(define fun?
+  (lambda (rel)
+    (set? (firsts rel))))
+
+;(fun? '((8 3) (4 2) (7 6) (6 2) (3 4)))
+;(fun? '((4 3) (4 2) (7 6) (6 2) (3 4)))
+;(fun? '((d 4) (b 0) (b 9) (e 5) (g 4)))
+
+(define revpair
+  (lambda (p)
+    (build (second p)
+           (first p))))
+
+(define revrel
+  (lambda (rel)
+    (cond ((null? rel) '())
+          (else
+           (cons (revpair (car rel))
+                 (revrel (cdr rel)))))))
+
+;(revrel '((8 a) (pumpkin pie) (got sick)))
+
+(define seconds
+  (lambda (l)
+    (cond ((null? l) '())
+          (else
+           (cons (car (cdr (car l)))
+                 (seconds (cdr l)))))))
+
+(define fullfun?
+  (lambda (fun)
+    (set? (seconds fun))))
+
+
+;;看到这个写法被震惊了
+(define one-to-one?
+  (lambda (fun)
+    (fun? (revrel fun))))
+
+(fullfun? '((8 3) (4 4) (7 6) (6 2) (3 4)))
+(fullfun? '((grape raisin) (plum prune) (stewed grape)))
+(one-to-one? '((8 3) (4 4) (7 6) (6 2) (3 4)))
+(one-to-one? '((grape raisin) (plum prune) (stewed grape)))
+
+
+;;;;;;; Chapter 8 - Lambda the Ultimate ;;;;;;;
 
 
 

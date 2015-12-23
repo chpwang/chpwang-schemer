@@ -28,7 +28,7 @@
 (define insertR
   (lambda (new old lat)
     (cond ((null? lat) '())
-          ((eq? old (car lat))
+          ((equal? old (car lat))
            (cons old
                  (cons new
                        (cdr lat))))
@@ -38,7 +38,7 @@
 (define insertL
   (lambda (new old lat)
     (cond ((null? lat) '())
-          ((eq? old (car lat))
+          ((equal? old (car lat))
            (cons new
                  lat))
           (else (cons (car lat)
@@ -47,7 +47,7 @@
 (define subst
   (lambda (new old lat)
     (cond ((null? lat) '())
-          ((eq? old (car lat))
+          ((equal? old (car lat))
            (cons new
                  (cdr lat)))
           (else (cons (car lat)
@@ -56,8 +56,8 @@
 (define subst2
   (lambda (new o1 o2 lat)
     (cond ((null? lat) '())
-          ((or (eq? o1 (car lat))
-               (eq? o2 (car lat)))
+          ((or (equal? o1 (car lat))
+               (equal? o2 (car lat)))
            (cons new
                  (cdr lat)))
           (else (cons (car lat)
@@ -76,7 +76,7 @@
 (define multiinsertR
   (lambda (new old lat)
     (cond ((null? lat) '())
-          ((eq? old (car lat))
+          ((equal? old (car lat))
            (cons old
                  (cons new
                        (multiinsertR new old (cdr lat)))))
@@ -87,7 +87,7 @@
 (define multiinsertL
   (lambda (new old lat)
     (cond ((null? lat) '())
-          ((eq? old (car lat))
+          ((equal? old (car lat))
            (cons new
                  (cons old
                        (multiinsertL new old (cdr lat)))))
@@ -97,7 +97,7 @@
 (define multisubst
   (lambda (new old lat)
     (cond ((null? lat) '())
-          ((eq? old (car lat))
+          ((equal? old (car lat))
            (cons new
                  (multisubst new old (cdr lat))))
           (else (cons (car lat)
@@ -208,17 +208,6 @@
                       (rempick (sub1 n)
                                (cdr lat)))))))
 
-#|
-
-(define rember
-  (lambda (a lat)
-    (cond ((null? lat) '())
-          ((eqan? a (car lat))
-           (cdr lat))
-          (else (cons (car lat)
-                      (rember a (cdr lat)))))))
-
-|#
 
 (define rember*
   (lambda (a l)
@@ -396,15 +385,15 @@
 (define value
   (lambda (nexp)
     (cond ((atom? nexp) nexp)
-          ((eq? (car (cdr nexp)) '+)
-           (+ (value (car nexp))
-              (value (car (cdr (cdr nexp))))))
-          ((eq? (car (cdr nexp)) '*)
-           (* (value (car nexp))
-              (value (car (cdr (cdr nexp))))))
+          ((eq? (operator nexp) '+)
+           (+ (value (1st-sub-exp nexp))
+              (value (2nd-sub-exp nexp))))
+          ((eq? (operator nexp) '*)
+           (* (value (1st-sub-exp nexp))
+              (value (2nd-sub-exp nexp))))
           (else
-           (expo (value (car nexp))
-                 (value (car (cdr (cdr nexp)))))))))
+           (expo (value (1st-sub-exp nexp))
+                 (value (2nd-sub-exp nexp)))))))
 |#
 
 (define operator
@@ -418,20 +407,6 @@
 (define 1st-sub-exp
   (lambda (aexp)
     (car aexp)))
-
-
-(define value
-  (lambda (nexp)
-    (cond ((atom? nexp) nexp)
-          ((eq? (operator nexp) '+)
-           (+ (value (1st-sub-exp nexp))
-              (value (2nd-sub-exp nexp))))
-          ((eq? (operator nexp) '*)
-           (* (value (1st-sub-exp nexp))
-              (value (2nd-sub-exp nexp))))
-          (else
-           (expo (value (1st-sub-exp nexp))
-                 (value (2nd-sub-exp nexp)))))))
 
 
 (define sero?
@@ -657,14 +632,149 @@
 (define one-to-one?
   (lambda (fun)
     (fun? (revrel fun))))
-
+#|
 (fullfun? '((8 3) (4 4) (7 6) (6 2) (3 4)))
 (fullfun? '((grape raisin) (plum prune) (stewed grape)))
 (one-to-one? '((8 3) (4 4) (7 6) (6 2) (3 4)))
 (one-to-one? '((grape raisin) (plum prune) (stewed grape)))
-
+|#
 
 ;;;;;;; Chapter 8 - Lambda the Ultimate ;;;;;;;
+
+(define eq?-c
+  (lambda (a)
+    (lambda (x)
+      (eq? x a))))
+
+(define rember-f
+  (lambda (test?)
+    (lambda (a l)
+      (cond ((null? l) '())
+            ((test? a (car l)) (cdr l))
+            (else
+             (cons (car l)
+                   ((rember-f test?) a (cdr l))))))))
+
+;((rember-f eq?) 'tuna '(shrimp salad and tuna salad))
+
+(define insertL-f
+  (lambda (test?)
+    (lambda (new old l)
+      (cond ((null? l) '())
+            ((test? (car l) old)
+             (cons new l))
+            (else
+             (cons (car l)
+                   ((insertL-f test?) new old (cdr l))))))))
+
+(define insertR-f
+  (lambda (test?)
+    (lambda (new old l)
+      (cond ((null? l) '())
+            ((test? (car l) old)
+             (cons old
+                   (cons new
+                         (cdr l))))
+            (else
+             (cons (car l)
+                   ((insertR-f test?) new old (cdr l))))))))
+
+#|
+我写的版本一
+(define insert-g
+  (lambda (test?)
+    (lambda (new old l)
+      (lambda (side)
+        ((side test?) new old l)))))
+
+(((insert-g eq?) 'xxx 'tuna '(shrimp salad and tuna salad)) insertL-f)
+(((insert-g eq?) 'xxx 'tuna '(shrimp salad and tuna salad)) insertR-f)
+|#
+
+
+(define seqL
+  (lambda (new old l)
+    (cons new (cons old l))))
+
+(define seqR
+  (lambda (new old l)
+    (cons old (cons new l))))
+
+#|
+
+(define rember
+  (lambda (a lat)
+    (cond ((null? lat) '())
+          ((eqan? a (car lat))
+           (cdr lat))
+          (else (cons (car lat)
+                      (rember a (cdr lat)))))))
+
+|#
+
+(define insert-g
+  (lambda (seq)
+    (lambda (new old l)
+      (cond ((null? l) '())
+            ((eq? old (car l))
+             (seq new old (cdr l)))
+            (else
+             (cons (car l)
+                   ((insert-g seq) new old (cdr l))))))))
+
+(define seqS
+  (lambda (new old l)
+    (cons new l)))
+
+(define yyy
+  (lambda (a lat)
+    ((insert-g seqrem) #f a lat)))
+
+(define seqrem
+  (lambda (old new l)
+    l))
+;;;;;; what you have just seen (see the codes above) is the power of abstraction ;;;;;;
+
+(define atom-to-function
+  (lambda (x)
+    (cond ((eq? x '+) +)
+          ((eq? x '*) *)
+          (else expo))))
+
+(define value
+  (lambda (nexp)
+    (cond ((atom? nexp) nexp)
+          (else
+           ((atom-to-function (operator nexp))
+            (value (1st-sub-exp nexp))
+            (value (2nd-sub-exp nexp)))))))
+
+(define multirember-f
+  (lambda (test?)
+    (lambda (a lat)
+      (cond ((null? lat) '())
+            ((test? a (car lat))
+             ((multirember-f test?) a (cdr lat)))
+            (else
+             (cons (car lat)
+                   ((multirember-f test?) a (cdr lat))))))))
+
+(define eq?-tuna
+  (eq?-c 'tuna))
+
+(define multiremberT
+  (lambda (fun lat)
+    (cond ((null? lat) '())
+          ((fun (car lat))
+           (multiremberT fun (cdr lat)))
+          (else
+           (cons (car lat)
+                 (multiremberT fun (cdr lat)))))))
+
+;;(multiremberT eq?-tuna '(shrimp salad tuna salad and tuna))
+
+
+
 
 
 

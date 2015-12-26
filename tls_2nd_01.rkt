@@ -133,11 +133,6 @@
           (else
            (* n (expo n (sub1 m)))))))
 
-(define length
-  (lambda (lat)
-    (cond ((null? lat) 0)
-          (else (add1 (length (cdr lat)))))))
-
 (define pick
   (lambda (n lat)
     (cond ((zero? (sub1 n)) (car lat))
@@ -979,17 +974,214 @@
     (cons s
           (cons p
                 newl))))
-(evens-only*&co '((9 1 2 8) 3 10 ((9 9 ) 7 6) 2) the-last-friend)
-(evens-only*&co '((3 5 6 (9 (8) 7 4 3)) 43 5 2 (62 3 67)) the-last-friend)
+;(evens-only*&co '((9 1 2 8) 3 10 ((9 9 ) 7 6) 2) the-last-friend)
+;(evens-only*&co '((3 5 6 (9 (8) 7 4 3)) 43 5 2 (62 3 67)) the-last-friend)
 
 ;;;;;;; Chapter 9 - ... and Again, and Again, and Again, ... ;;;;;;;
 
+#|
+我的盲写版本
+(define find-nth
+  (lambda (n lat)
+    (cond ((zero? (sub1 n)) (car lat))
+          (else
+           (find-nth (sub1 n) (cdr lat))))))
+
+(define looking-until-notnum
+  (lambda (a lat)
+    (cond ((number? a)
+           (looking-until-notnum
+            (find-nth a lat)
+            lat))
+          (else
+           a))))
+
+(define looking
+  (lambda (a lat)
+    (cond ((null? lat) #f)
+          (else
+           (eq? a
+                (looking-until-notnum (car lat)
+                                      lat))))))
+|#
+(define pick-up
+  (lambda (n lat)
+    (cond ((zero? (sub1 n)) (car lat))
+          (else
+           (pick-up (sub1 n) (cdr lat))))))
+
+(define keep-looking
+  (lambda (a ax lat)
+    (cond ((number? ax)
+           (keep-looking a (pick-up ax lat) lat))
+          (else
+           (eq? a ax)))))
+
+(define looking
+  (lambda (a lat)
+    (keep-looking a (pick-up 1 lat) lat)))
+
+;(looking 'caviar '(6 2 grits caviar 5 7 3))
+
+#|
+我的盲写版本
+(define shift
+  (lambda (l)
+    (cond ((null? l) '())
+          ((atom? (car l)) l)
+          (else
+           (cons (leftmost l)
+                 (cons (cons (car (cdr (car l)))
+                             (cons (car (cdr l))
+                                   '()))
+                       '()))))))
+|#
+
+(define shift
+  (lambda (pair)
+    (build (first (first pair))
+           (build (second (first pair))
+                  (second pair)))))
+
+(define align
+  (lambda (pora)
+    (cond ((atom? pora) pora)
+          ((a-pair? (first pora))
+           (align (shift pora)))
+          (else (build (first pora)
+                       (align (second pora)))))))
+
+(define length*
+  (lambda (pora)
+    (cond ((atom? pora) 1)
+          (else
+           (+ (length* (first pora))
+              (length* (second pora)))))))
+
+(define weight*
+  (lambda (pora)
+    (cond ((atom? pora) 1)
+          (else
+           (+ (* (weight* (first pora)) 2)
+              (weight* (second pora)))))))
+
+(define shuffle
+  (lambda (pora)
+    (cond ((atom? pora) pora)
+          ((a-pair? (first pora))
+           (shuffle (revpair pora)))
+          (else (build (first pora)
+                       (shuffle (second pora)))))))
+
+(define length
+  (lambda (lat)
+    (cond ((null? lat) 0)
+          (else (add1 (length (cdr lat)))))))
+
+(define eternity
+  (lambda (x)
+    (eternity x)))
+
+#|
+;;;;; scratch 1 ;;;;;
+
+(lambda (l)
+  (cond ((null? l) 0)
+        (else
+         (add1 ((lambda (l)
+                  (cond ((null? l) 0)
+                        (else
+                         (add1 (eternity l)))))
+                (cdr l))))))
 
 
+;;;;; scratch 2 ;;;;;
 
+((lambda (length)
+   (lambda (l)
+     (cond ((null? l) 0)
+           (else
+            (add1 (length
+                   (cdr l)))))))
+ ((lambda (length)
+    (lambda (l)
+      (cond ((null? l) 0)
+            (else
+             (add1 (length
+                    (cdr l)))))))
+  eternity))
 
+;;;;; scratch 3 ;;;;;
 
+((lambda (mk-length)
+   (mk-length
+    (mk-length
+     (mk-length eternity))))
+ (lambda (length)
+   (lambda (l)
+     (cond ((null? l) 0)
+           (else
+            (add1 (length
+                   (cdr l))))))))
 
+;;;;; scratch 4 ;;;;;
+
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond ((null? l) 0)
+           (else
+            (add1 ((mk-length mk-length)
+                   (cdr l))))))))
+
+;;;;; scratch 5 ;;;;;
+
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   ((lambda (length)
+      (lambda (l)
+        (cond ((null? l) 0)
+              (else
+               (add1 (length
+                      (cdr l)))))))
+    (mk-length mk-length))))
+
+;;;;; scratch 6 ;;;;;
+
+((lambda (mk-length)
+    (mk-length mk-length))
+  (lambda (mk-length)
+    ((lambda (length)
+       (lambda (l)
+         (cond ((null? l) 0)
+               (else
+                (add1 (length
+                       (cdr l)))))))
+     (lambda (x)
+       ((mk-length mk-length) x)))))     ;;;;用 lambda 保护起来等一下再算 lazy evaluation?
+
+;;;;; scratch 7 ;;;;;
+
+((lambda (y)
+   ((lambda (mk-length)
+      (mk-length mk-length))
+    (lambda (mk-length)
+      (y
+       (lambda (x)
+         ((mk-length mk-length) x))))))
+ 
+ (lambda (length)
+   (lambda (l)
+     (cond ((null? l) 0)
+           (else
+            (add1 (length
+                   (cdr l))))))))
+
+|#
+
+;;;;;;; Chapter 10 - What Is the Value of All of This ? ;;;;;;;
 
 
 

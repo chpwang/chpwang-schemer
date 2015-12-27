@@ -715,6 +715,8 @@
           ((eq? x '*) *)
           (else expo))))
 
+#|
+;;;;;;comment out for creating the interpreter in Chapter 10;;;;;;
 (define value
   (lambda (nexp)
     (cond ((atom? nexp) nexp)
@@ -722,6 +724,7 @@
            ((atom-to-function (operator nexp))
             (value (1st-sub-exp nexp))
             (value (2nd-sub-exp nexp)))))))
+|#
 
 (define multirember-f
   (lambda (test?)
@@ -1074,9 +1077,9 @@
                        (shuffle (second pora)))))))
 
 (define length
-  (lambda (lat)
-    (cond ((null? lat) 0)
-          (else (add1 (length (cdr lat)))))))
+  (lambda (l)
+    (cond ((null? l) 0)
+          (else (add1 (length (cdr l)))))))
 
 (define eternity
   (lambda (x)
@@ -1183,21 +1186,252 @@
 
 ;;;;;;; Chapter 10 - What Is the Value of All of This ? ;;;;;;;
 
+(define new-entry build)
+
+#|
+我的版本
+(define lookup-in-entry
+  (lambda (name entry)
+    (cond ((null? (first entry)) '())
+          ((eq? name (car (first entry)))
+           (car (second entry)))
+          (else
+           (lookup-in-entry name
+                            (new-entry (cdr (first entry))
+                                       (cdr (second entry))))))))
+|#
+
+(define lookup-in-entry-help
+  (lambda (name names values entry-f)
+    (cond ((null? names) (entry-f name))
+          ((eq? name (car names))
+           (car values))
+          (else
+           (lookup-in-entry-help name
+                                 (cdr names)
+                                 (cdr values)
+                                 entry-f)))))
+
+(define lookup-in-entry
+  (lambda (name entry entry-f)
+    (lookup-in-entry-help name
+                          (first entry)
+                          (second entry)
+                          entry-f)))
 
 
+(define extend-table cons)
+
+#|
+我的版本
+(define lookup-in-table
+  (lambda (name entry table-f)
+    (cond ((null? table) (table-f name))
+          ((member? name (first (car table)))
+           (lookup-in-entry name (car table) table-f))
+          (else
+           (looup-in-table name
+                           (cdr table)
+                           table-f)))))
+|#
 
 
+(define lookup-in-table
+  (lambda (name table table-f)
+    (cond ((null? table) (table-f name))
+          (else
+           (lookup-in-entry name
+                            (car table)
+                            (lambda (n)
+                              (lookup-in-table n
+                                               (cdr table)
+                                               table-f)))))))
+
+(define expression-to-action
+  (lambda (e)
+    (cond
+      ((atom? e) (atom-to-action e))
+      (else
+       (list-to-action e)))))
+
+(define atom-to-action
+  (lambda (e)
+    (cond ((number? e) *const)
+          ((eq? e '#t) *const)
+          ((eq? e '#f) *const)
+          ((eq? e 'car) *const)
+          ((eq? e 'cdr) *const)
+          ((eq? e 'eq?) *const)
+          ((eq? e 'null?) *const)
+          ((eq? e 'atom?) *const)
+          ((eq? e 'add1) *const)
+          ((eq? e 'sub1) *const)
+          ((eq? e 'zero?) *const)
+          ((eq? e 'cons) *const)
+          ((eq? e 'number?) *const)
+          (else
+           *identifier))))
+
+(define list-to-action
+  (lambda (e)
+    (cond ((atom? (car e))
+           (cond ((eq? (car e) 'cond) *cond)
+                 ((eq? (car e) 'lambda) *lambda)
+                 ((eq? (car e) 'quote) *quote)
+                 (else
+                  *application)))
+          (else
+           *application))))
 
 
+(define *const
+  (lambda (e table)
+    (cond ((number? e) e)
+          ((eq? e '#t) #t)
+          ((eq? e '#f) #f)
+          (else
+           (build 'primitive e)))))
+
+(define text-of second)
+
+(define *quote
+  (lambda (e table)
+    (text-of e)))
+
+(define *identifier
+  (lambda (e table)
+    (lookup-in-table e table initial-table)))
+
+(define initial-table
+  (lambda (name)
+    (car '())))
+
+(define *lambda
+  (lambda (e table)
+    (build 'non-primitive
+           (cons table (cdr e)))))
+
+(define table-of first)
+
+(define formals-of second)
+
+(define body-of third)
+
+(define else?
+  (lambda (e)
+    (cond ((atom? e) (eq? e 'else))
+          (else #f))))
+
+(define question-of first)
+
+(define answer-of second)
+
+(define evcon
+  (lambda (lines table)
+    (cond ((else? (question-of (car lines)))
+           (meaning (answer-of (car lines))
+                    table))
+          ((meaning (question-of (car lines))
+                    table)
+           (meaning (answer-of (car lines))
+                    table))
+          (else
+           (evcon (cdr lines) table)))))
+
+(define cond-lines-of cdr)
+
+(define *cond
+  (lambda (e table)
+    (evcon (cond-lines-of e) table)))
 
 
+(define evlis
+  (lambda (args table)
+    (cond ((null? args) '())
+          (else
+           (cons (meaning (car args) table)
+                 (evlis (cdr args) table))))))
+
+(define function-of car)
+
+(define arguments-of cdr)
+
+(define primitive?
+  (lambda (l)
+    (eq? (first l) 'primitive)))
+
+(define non-primitive?
+  (lambda (l)
+    (eq? (first l) 'non-primitive)))
+
+(define apply-closure
+  (lambda (closure vals)
+    (meaning (body-of closure)
+             (extend-table (new-entry (formals-of closure)
+                                      vals)
+                           (table-of closure)))))
+
+(define new-atom?
+  (lambda (x)
+    (cond ((atom? x) #t)
+          ((null? x) #f)
+          ((eq? (car x) 'primitive) #t)
+          ((eq? (car x) 'non-primitive) #t)
+          (else #f))))
+
+(define apply-primitive
+  (lambda (f vals)
+    (cond ((eq? f 'cons)
+           (cons (first vals) (second vals)))
+          ((eq? f 'car)
+           (car (first vals)))
+          ((eq? f 'cdr)
+           (cdr (first vals)))
+          ((eq? f 'null?)
+           (null? (first vals)))
+          ((eq? f 'eq?)
+           (eq? (first vals) (second vals)))
+          ((eq? f 'atom?)
+           (new-atom? (first vals)))
+          ((eq? f 'zero?)
+           (zero? (first vals)))
+          ((eq? f 'add1)
+           (add1 (first vals)))
+          ((eq? f 'sub1)
+           (sub1 (first vals)))
+          ((eq? f 'number?)
+           (number? (first vals))))))
 
 
+(define apply
+  (lambda (func vals)
+    (cond ((primitive? func)
+           (apply-primitive
+            (second func) vals))
+          ((non-primitive? func)
+           (apply-closure
+            (second func) vals)))))
 
 
+(define *application
+  (lambda (e table)
+    (apply (meaning (function-of e) table)
+           (evlis (arguments-of e) table))))
 
 
+(define meaning
+  (lambda (e table)
+    ((expression-to-action e) e table)))
 
+
+(define value
+  (lambda (e)
+    (meaning e '())))
+
+
+(value '(cons 6 (quote (a b c))))
+
+;;;;;;;;;;;;;; End of TLS ;;;;;;;;;;;;;;
 
 
 

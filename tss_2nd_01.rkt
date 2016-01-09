@@ -1,4 +1,15 @@
 #lang scheme
+(define-syntax letcc 
+  (syntax-rules () 
+    ((letcc var body ...) 
+     (call-with-current-continuation 
+       (lambda (var)  body ... )))))
+
+(define-syntax try 
+  (syntax-rules () 
+    ((try var a . b) 
+     (letcc success 
+       (letcc var (success a)) . b))))
 
 #|
 我的版本，包含了不相邻（连续）的判断，但书里要求要相邻才 #t
@@ -138,19 +149,91 @@
                                   (cdr tup))))))))
       (S '() tup))))
 
-(scramble '(1 2 3 1 2 3 4 1 8 2 10))
+;(scramble '(1 2 3 1 2 3 4 1 8 2 10))
 
 
 ;;;;;;; Chapter 13 - Hop, Skip, and Jump ;;;;;;;
 
+(define intersect
+  (lambda (set1 set2)
+    (letrec ((I (lambda (set)
+                  (cond ((null? set) '())
+                        ((member? (car set) set2)
+                         (cons (car set)
+                               (I (cdr set))))
+                        (else
+                         (I (cdr set)))))))
+      (cond ((null? set2) '())
+            (else
+             (I set1))))))
 
+(define intersectall
+  (lambda (l-sets)
+    (letcc hop
+      (letrec ((A (lambda (lsets)
+                       (cond ((null? (car lsets))
+                              (hop '()))
+                             ((null? (cdr lsets))
+                              (car lsets))
+                             (else
+                              (I (car lsets)
+                                 (A (cdr lsets)))))))
+               (I (lambda (set1 set2)
+                    (letrec ((J (lambda (set)
+                                  (cond ((null? set) '())
+                                        ((member? (car set) set2)
+                                         (cons (car set)
+                                               (J (cdr set))))
+                                        (else
+                                         (J (cdr set)))))))
+                      (cond ((null? set2) (hop '()))
+                            (else
+                             (J set1)))))))
+        (cond  ((null? l-sets) '())
+               (else
+                (A l-sets)))))))
 
+;(intersectall '((tomatoes 3 and macaroni t2t) (2 5 6) (macaroni and 3 cheese)))
 
+(define rember
+  (lambda (a lat)
+    (letcc hop
+      (letrec ((R (lambda (l)
+                    (cond ((null? l) (hop lat))
+                          ((eq? a (car l))
+                           (cdr l))
+                          (else
+                           (cons (car l)
+                                 (R (cdr l))))))))
+        (R lat)))))
 
+(define rember-beyond-first
+  (lambda (a lat)
+    (letcc hop
+      (letrec ((R (lambda (l)
+                    (cond ((null? l) (hop lat))
+                          ((eq? a (car l))
+                           '())
+                          (else
+                           (cons (car l)
+                                 (R (cdr l))))))))
+        (R lat)))))
 
+(define rember-upto-last
+  (lambda (a lat)
+    (letcc skip
+      (letrec ((R (lambda (l)
+                    (cond ((null? l) '())
+                          ((eq? a (car l))
+                           (skip (R (cdr l))))
+                          (else
+                           (cons (car l)
+                                 (R (cdr l))))))))
+        (R lat)))))
 
+;(rember-upto-last 'roots '(noodles spaghetti roots spatzle bean-thread roots potatoes yam others rice))
 
-
+;;;;;;; Chapter 14 - Let There Be Names ;;;;;;;
 
 
 

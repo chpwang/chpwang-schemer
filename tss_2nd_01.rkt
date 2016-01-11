@@ -444,12 +444,60 @@
   (lambda (a l)
     (try hop (rm a l hop) l)))
 
-(rember1** 'meat '((pasta meat) pasta (noodles (meat) sauce) meat tomatoes))
-(rember1** 'salad '((Swedish rye) (French (mustard salad turkey)) (salad)))
+;(rember1** 'meat '((pasta meat) pasta (noodles (meat) sauce) meat tomatoes))
+;(rember1** 'salad '((Swedish rye) (French (mustard salad turkey)) (salad)))
 
 
 
 ;;;;;;; Chapter 15 - The Difference Between Men and Boys ... ;;;;;;;
+#|
+(define x '())
+
+(define gourmand
+  (lambda (food)
+    (set! x food)
+    (cons food
+          (cons x '()))))
+
+(define dinerR
+  (lambda (food)
+    (set! x food)
+    (cons 'milkshake
+          (cons food
+                '()))))
+|#
+
+
+(define omnivore
+  (let ((x (quote minestrone)))
+    (lambda (food)
+      (set! x food)
+      (cons food
+            (cons x
+                  '())))))
+
+
+;;;;;;; Chapter 16 - Ready, Set, Bang! ;;;;;;;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

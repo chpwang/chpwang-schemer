@@ -479,18 +479,100 @@
 
 ;;;;;;; Chapter 16 - Ready, Set, Bang! ;;;;;;;
 
+(define sweet-tooth
+  (lambda (food)
+    (cons food
+          (cons 'cake '()))))
+
+(define last 'angelfood)
+
+(define sweet-toothL
+  (lambda (food)
+    (set! last food)
+    (cons food
+          (cons 'cake '()))))
+
+(define ingredients '())
+
+(define sweet-toothR
+  (lambda (food)
+    (set! ingredients (cons food ingredients))
+    (cons food
+          (cons 'cake '()))))
 
 
+(define deep
+  (lambda (n)
+    (cond ((zero? n) 'pizza)
+          (else
+           (cons (deepM (- n 1))
+                 '())))))
 
 
+(define find
+  (lambda (n ns rs)
+    (letrec ((help
+              (lambda (ln lr)
+                (cond ((null? ln) #f)
+                      ((= n (car ln))
+                       (car lr))
+                      (else
+                       (help (cdr ln) (cdr lr)))))))
+      (help ns rs))))
+
+(define deepM
+  (let ((Ns '())
+        (Rs '()))
+    (lambda (n)
+      (let ((exists (find n Ns Rs)))
+        (if (atom? exists)
+            (let ((result (deep n)))
+              (set! Ns (cons n Ns))
+              (set! Rs (cons result Rs))
+              result)
+            exists)))))
+
+(define Y
+  (lambda (y)
+    ((lambda (mk-length)
+       (mk-length mk-length))
+     (lambda (mk-length)
+       (y
+        (lambda (x)
+          ((mk-length mk-length) x)))))))
+
+(define L
+  (lambda (length)
+    (lambda (l)
+      (cond ((null? l) 0)
+            (else (+ 1 (length (cdr l))))))))
 
 
+(define Y!
+  (lambda (fun)
+    (let ((h (lambda (l) 0)))
+      (set! h
+            (fun (lambda (x) (h x))))
+      h)))
+
+(define Y-bang
+  (lambda (f)
+    (letrec ((h (f (lambda (arg) (h arg)))))
+      h)))
+
+(define biz
+  (let ((x 0))
+    (lambda (f)
+      (set! x (+ 1 x))
+      (lambda (a)
+        (if (= a x)
+            0
+            (f a))))))
+
+;((Y! biz) 1)
 
 
-
-
-
-
+;;;;;;; Chapter 17 - We Change, Therefor We Are ! ;;;;;;;
 
 
 

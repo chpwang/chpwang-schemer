@@ -415,6 +415,7 @@
 ;(rember1* 'salad '(((a)) b b))
 |#
 
+
 (define rm
   (lambda (a ls oh)
     (cond ((null? ls) (oh #f))
@@ -431,7 +432,7 @@
                      (rm a (cdr ls) oh))
                (cons (rm a (car ls) oh)
                      (cdr ls)))))))
-
+#|
 (define rember1*
   (lambda (a l)
     (let ((new-l (letcc hop
@@ -439,6 +440,7 @@
       (if (atom? new-l)
           l
           new-l))))
+|#
 
 (define rember1**
   (lambda (a l)
@@ -501,37 +503,6 @@
           (cons 'cake '()))))
 
 
-(define deep
-  (lambda (n)
-    (cond ((zero? n) 'pizza)
-          (else
-           (cons (deepM (- n 1))
-                 '())))))
-
-
-(define find
-  (lambda (n ns rs)
-    (letrec ((help
-              (lambda (ln lr)
-                (cond ((null? ln) #f)
-                      ((= n (car ln))
-                       (car lr))
-                      (else
-                       (help (cdr ln) (cdr lr)))))))
-      (help ns rs))))
-
-(define deepM
-  (let ((Ns '())
-        (Rs '()))
-    (lambda (n)
-      (let ((exists (find n Ns Rs)))
-        (if (atom? exists)
-            (let ((result (deep n)))
-              (set! Ns (cons n Ns))
-              (set! Rs (cons result Rs))
-              result)
-            exists)))))
-
 (define Y
   (lambda (y)
     ((lambda (mk-length)
@@ -573,6 +544,131 @@
 
 
 ;;;;;;; Chapter 17 - We Change, Therefor We Are ! ;;;;;;;
+
+
+(define find
+  (lambda (n ns rs)
+    (letrec ((help
+              (lambda (ln lr)
+                (cond ((null? ln) #f)
+                      ((= n (car ln))
+                       (car lr))
+                      (else
+                       (help (cdr ln) (cdr lr)))))))
+      (help ns rs))))
+
+(define deepM
+  (let ((Ns '())
+        (Rs '()))
+    (lambda (n)
+      (let ((exists (find n Ns Rs)))
+        (if (atom? exists)
+            (let ((result (if (zero? n)
+                              'pizza
+                              (consC (deepM (- n 1))
+                                    '()))))
+              (set! Ns (cons n Ns))
+              (set! Rs (cons result Rs))
+              result)
+            exists)))))
+
+(define counter '())
+(define set-counter '())
+
+(define consC
+  (let ((count 0))
+    (set! counter (lambda () count))
+    (set! set-counter (lambda (x) (set! count x)))
+    (lambda (s l)
+      (set! count (+ 1 count))
+      (cons s l))))
+
+(define deep
+  (lambda (n)
+    (if (zero? n)
+        'pizza
+        (consC (deep (- n 1))
+               '()))))
+#|
+;;;;;;我写的版本和对应的 deepM - 我把 deepM 里三个地方都换成了 consC
+(define supercounter
+  (lambda (f)
+    (letrec ((S (lambda (n)
+                  (cond ((zero? n) (counter))
+                        (else
+                         (f n)
+                         (S (- n 1)))))))
+          (S 1000))))
+
+(define deepM
+  (let ((Ns '())
+        (Rs '()))
+    (lambda (n)
+      (let ((exists (find n Ns Rs)))
+        (if (atom? exists)
+            (let ((result (if (zero? n)
+                              'pizza
+                              (consC (deepM (- n 1))
+                                    '()))))
+              (set! Ns (consC n Ns))
+              (set! Rs (consC result Rs))
+              result)
+            exists)))))
+|#
+
+(define supercounter
+  (lambda (f)
+    (letrec ((S (lambda (n)
+                  (cond ((zero? n) (f n))
+                        (else
+                         (f n)
+                         (S (- n 1)))))))
+      (S 1000)
+      (counter))))
+
+
+(define rember1*C
+  (lambda (a l)
+    (letrec ((R (lambda (ls oh)
+                   (cond ((null? ls) (oh #f))
+                         ((atom? (car ls))
+                          (cond ((eq? (car ls) a)
+                                 (cdr ls))
+                                (else
+                                 (consC (car ls)
+                                        (R(cdr ls) oh)))))
+                         (else
+                          (if (atom? (letcc out
+                                       (R (car ls) out)))
+                              (consC (car ls)
+                                     (R (cdr ls) oh))
+                              (consC (R (car ls) oh)
+                                     (cdr ls))))))))
+      (let ((new-l (letcc hop
+                     (rm a l hop))))
+        (if (atom? new-l)
+            l
+            new-l)))))
+
+
+;(rember1*C 'noodles '((food) more (food)))
+
+
+;;;;;;; Chapter 18 - We Change, Therefore We Are The Same! ;;;;;;;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

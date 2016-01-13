@@ -656,17 +656,147 @@
 
 ;;;;;;; Chapter 18 - We Change, Therefore We Are The Same! ;;;;;;;
 
+(define lots
+  (lambda (n)
+    (cond ((zero? n) '())
+          (else
+           (konsC 'egg
+                 (lots (- n 1)))))))
+
+(define lenkth
+  (lambda (l)
+    (cond ((null? l) 0)
+          (else
+           (+ 1 (lenkth (kdr l)))))))
+
+(define add-at-end
+  (lambda (l)
+    (cond ((null? (kdr l))
+           (konsC (kar l)
+                  (konsC 'egg
+                        '())))
+          (else
+           (konsC (kar l)
+                 (add-at-end (kdr l)))))))
+
+(define kounter '())
+(define set-kounter '())
+
+(define konsC
+  (let ((kount 0))
+    (set! kounter (lambda () kount))
+    (set! set-kounter (lambda (x) (set! kount x)))
+    (lambda (a b)
+      (set! kount (+ 1 kount))
+      (kons a b))))
+
+(define add-at-end-too
+  (lambda (l)
+    (letrec ((A (lambda (ls)
+                  (cond ((null? (kdr ls))
+                         (set-kdr ls
+                                  (konsC 'egg
+                                        '())))
+                        (else
+                         (A (kdr ls)))))))
+      (A l)
+      l)))
+
+#|
+(define kons
+  (lambda (kar kdr)
+    (lambda (selector)
+      (selector kar kdr))))
+
+(define kar
+  (lambda (k)
+    (k (lambda (a b) a))))
+
+(define kdr
+  (lambda (k)
+    (k (lambda (a b) b))))
+|#
+
+(define bons
+  (lambda (kar)
+    (let ((kdr '()))
+      (lambda (selector)
+        (selector
+         (lambda (x) (set! kdr x))
+         kar
+         kdr)))))
+
+(define kar
+  (lambda (bons)
+    (bons (lambda (s a b) a))))
+
+(define kdr
+  (lambda (bs)
+    (bs (lambda (s a b) b))))
+
+(define set-kdr
+  (lambda (bs x)
+    ((bs (lambda (s a b) s)) x)))
+
+(define kons
+  (lambda (kar kdr)
+    (let ((B (bons kar)))
+      (set-kdr B kdr)
+      B)))
+
+(define eklist?
+  (lambda (ls1 ls2)
+    (cond ((null? ls1) (null? ls2))
+          ((null? ls2) #f)
+          (else
+           (and (eq? (kar ls1) (kar ls2))
+                (eklist? (kdr ls1) (kdr ls2)))))))
+
+(define same?
+  (lambda (kons1 kons2)
+    (let ((t1 (kdr kons1))
+          (t2 (kdr kons2)))
+      (set-kdr kons1 '1)
+      (set-kdr kons2 '2)
+      (let ((v (= (kdr kons1) (kdr kons2))))
+        (set-kdr kons1 t1)
+        (set-kdr kons2 t2)
+        v))))
+
+(define dozen (lots 12))
+
+(define bakers-dozen (add-at-end dozen))
+
+(define bakers-dozen-too (add-at-end-too dozen))
+
+(define bakers-dozen-again (add-at-end dozen))
+
+(define last-kons
+  (lambda (ls)
+    (cond ((null? (kdr ls)) ls)
+          (else
+           (last-kons (kdr ls))))))
+
+(define long (lots 12))
+
+(define finite-lenkth
+  (lambda (p)
+    (letcc infinite
+      (letrec ((C (lambda (p q)
+                    (cond ((same? p q) (infinite #f))
+                          ((null? q) 0)
+                          ((null? (kdr q)) 1)
+                          (else
+                           (+ (C (sl p) (qk q))
+                              2)))))
+               (qk (lambda (x) (kdr (kdr x))))
+               (sl (lambda (x) (kdr x))))
+        (cond ((null? p) 0)
+              (else
+               (+ 1 (C p (kdr p)))))))))
 
 
-
-
-
-
-
-
-
-
-
+;;;;;;; Chapter 19 - Absconding with the Jewels ;;;;;;;
 
 
 

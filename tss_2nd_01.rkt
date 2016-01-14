@@ -139,19 +139,6 @@
 
 ;(union '(tomatoes and macaroni tt) '(macaroni and cheese))
 
-(define two-in-a-row?
-  (letrec ((help (lambda (a lat)
-                   (cond ((null? lat) #f)
-                         (else
-                          (or (eq? a (car lat))
-                              (help (car lat) (cdr lat))))))))
-    (lambda (lat)
-      (cond ((null? lat) #f)
-            (else
-             (help (car lat) (cdr lat)))))))
-
-;(two-in-a-row? '(Italian sardines spaghetti sardines parsley))
-
 
 (define sum-of-prefixes
   (letrec ((help (lambda (prefixes tup)
@@ -583,12 +570,7 @@
       (set! count (+ 1 count))
       (cons s l))))
 
-(define deep
-  (lambda (n)
-    (if (zero? n)
-        'pizza
-        (consC (deep (- n 1))
-               '()))))
+
 #|
 ;;;;;;我写的版本和对应的 deepM - 我把 deepM 里三个地方都换成了 consC
 (define supercounter
@@ -798,11 +780,192 @@
 
 ;;;;;;; Chapter 19 - Absconding with the Jewels ;;;;;;;
 
+(define deep
+  (lambda (n)
+    (if (zero? n)
+        'pizza
+        (cons (deep (- n 1))
+               '()))))
+
+#|
+;;;;;;; 我的失败版本 - 在还没理解 set! 的机制的情况下
+;;;;;;; 书上采用的是用 letcc 中断一个正在进行的函数，并把中断带出
+;;;;;;; 以便设置好参数后从中断处继续
+(define set-innermo '())
+(define see-innermo '())
+
+(define deepS
+  (let ((inner 1))
+    (set! set-innermo (lambda (x) (set! inner x)))
+    (set! see-innermo (lambda () inner))
+    (lambda (num p)
+      (letrec ((D (lambda (n)
+                    (cond ((zero? n) inner)
+                          (else
+                           (cons (D (- n 1))
+                                 '()))))))
+        (set! inner p)
+        (D num)))))
+
+(define test (deepS 5 'neapolitan))
+|#
+
+
+(define toppings '())
+
+#|
+;;; 我的版本 - 看了书中提示用 letcc 后盲写的
+(define deepB
+  (lambda (num)
+    (letcc pause
+      (letrec ((B (lambda (m)
+                    (cond ((zero? m)
+                           (let ((inner '()))
+                             (letcc continue
+                               (pause
+                                (set! toppings
+                                      (lambda (x) (continue (set! inner x))))))
+                             inner))
+                          (else
+                           (cons (B (- m 1))
+                                 '()))))))
+        (B num)))))
+|#
+
+#|
+;;; 看了书上的答案后改进的版本。书上的简单多了。
+;;; 书上用 deepB 是直接输出一个答案并且保存中断，而我上面的版本则
+;;; 在应用 deepB 后不输出，用 toppings 来输出
+
+(define deepB
+  (lambda (m)
+    (cond ((zero? m)
+           (let ((inner 'pizza))
+             (letcc continue
+               (set! toppings
+                     (lambda (x) (continue (set! inner x)))))
+             inner))
+          (else
+           (cons (deepB (- m 1))
+                 '())))))
+|#
+
+;;;; 书上连 lambda 和 let 都不用，直接把 continue 当赋值给 toppings
+(define deepB
+  (lambda (m)
+    (cond ((zero? m)
+           (letcc continue
+             (set! toppings continue)
+             'pizza))
+          (else
+           (cons (deepB (- m 1))
+                 '())))))
+
+(define deep&co
+  (lambda (m k)
+    (cond ((zero? m) (k 'pizza))
+          (else
+           (deep&co (- m 1)
+                    (lambda (x)
+                      (k (cons x '()))))))))
+
+(define deep&coB
+  (lambda (m k)
+    (cond ((zero? m)
+           (let ()
+             (set! toppings k)
+             (k 'pizza)))
+          (else
+           (deep&coB (- m 1)
+                    (lambda (x)
+                      (k (cons x '()))))))))
+
+(define two-in-a-row?
+  (letrec ((help (lambda (a lat)
+                   (cond ((null? lat) #f)
+                         (else
+                          (let ((nxt (car lat)))
+                            (or (eq? a nxt)
+                                (help nxt (cdr lat)))))))))
+    (lambda (lat)
+      (cond ((null? lat) #f)
+            (else
+             (help (car lat) (cdr lat)))))))
+
+;(two-in-a-row? '(Italian sardines spaghetti sardines parsley))
 
 
 
 
+;(start-it2 '((potato) (chips (chips (with))) fish))
 
+#|
+;;;; 我的版本
+;;;; 注意，如果函数的参数 list 里没有 atom
+;;;; waddle 函数就不会给 fill 赋值，会出错
+;;;; 故 letrec 的 value part 里不能用 null？
+;;;; 判断 ls 后就直接 (H (get-first ls))
+
+(define two-in-a-row*?
+  (lambda (ls)
+    (letrec ((H (lambda (a)
+                  (let ((b (get-next 'go)))
+                    (cond ((null? b) #f)
+                          (else
+                           (or (eq? a b)
+                               (H b))))))))
+      (let ((fst (get-first ls)))
+        (if (atom? fst)
+            (H fst)
+            #f)))))
+|#
+
+
+(define two-in-a-row*?
+  (lambda (ls)
+    (letrec ((H (lambda (a)
+                  (let ((b (get-next 'go)))
+                    (cond ((null? b) #f)
+                          (else
+                           (or (eq? a b)
+                               (H b)))))))
+             (get-next (lambda (x)
+                         (letcc here-again
+                           (set! leave here-again)
+                           (fill 'go))))
+             (waddle (lambda (l)
+                       (cond ((null? l) '())
+                             ((atom? (car l))
+                              (let ()
+                                (letcc back
+                                  (set! fill back)
+                                  (leave (car l)))
+                                (waddle (cdr l))))
+                             (else
+                              (let ()
+                                (waddle (car l))
+                                (waddle (cdr l)))))))
+             (fill (lambda (x) x))
+             (leave (lambda (x) x)))
+      (let ((fst (letcc here
+                   (set! leave here)
+                   (waddle ls)
+                   (leave '()))))
+        (if (atom? fst)
+            (H fst)
+            #f)))))
+
+
+
+
+;(two-in-a-row*? '((mozzarella) (cake) mozzarella))
+;(two-in-a-row*? '((potato) (chips ((with) fish) (fish))))
+;(two-in-a-row*? '((potato) (chips ((with) fish) (chips))))
+;(two-in-a-row*? '(() ((() ) ())))
+;(two-in-a-row*? '(((food) ()) (((food)))))
+
+
+;;;;;;; Chapter 20 - What's in Store ? ;;;;;;;
 
 
 

@@ -956,8 +956,6 @@
             #f)))))
 
 
-
-
 ;(two-in-a-row*? '((mozzarella) (cake) mozzarella))
 ;(two-in-a-row*? '((potato) (chips ((with) fish) (fish))))
 ;(two-in-a-row*? '((potato) (chips ((with) fish) (chips))))
@@ -967,16 +965,293 @@
 
 ;;;;;;; Chapter 20 - What's in Store ? ;;;;;;;
 
+(define build
+  (lambda (a b)
+    (cons a
+          (cons b '()))))
+
+(define first
+  (lambda (l)
+    (car l)))
+
+(define second
+  (lambda (l)
+    (car (cdr l))))
+
+(define third
+  (lambda (l)
+    (car (cdr (cdr l)))))
+
+(define lookup-in-entry
+  (lambda (name entry entry-f)
+    (letrec ((L (lambda (e)
+                  (let ((fst (first e))
+                        (snd (second e)))
+                    (cond ((null? fst)
+                           (entry-f name))
+                          ((eq? name (car fst))
+                           (car snd))
+                          (else
+                           (L (build (cdr fst)
+                                     (cdr snd)))))))))
+      (L entry))))
+
+(define lookup-in-table
+  (lambda (name table table-f)
+    (cond ((null? table) (table-f name))
+          (else
+           (lookup-in-entry name
+                            (car table)
+                            (lambda (n)
+                              (lookup-in-table n (cdr table) table-f)))))))
+
+(define expression-to-action
+  (lambda (e)
+    (cond ((atom? e) (atom-to-action e))
+          (else
+           (list-to-action e)))))
+
+(define atom-to-action
+  (lambda (e)
+    (cond ((number? e) *const)
+          ((eq? e '#f) *const)
+          ((eq? e '#t) *const)
+          ((eq? e 'car) *const)
+          ((eq? e 'cons) *const)
+          ((eq? e 'cdr) *const)
+          ((eq? e 'eq?) *const)
+          ((eq? e 'atom?) *const)
+          ((eq? e 'number?) *const)
+          ((eq? e 'zero?) *const)
+          ((eq? e 'null?) *const)
+          ((eq? e '+) *const)
+          ((eq? e '-) *const)
+          ((eq? e '*) *const)
+          ((eq? e 'add1) *const)
+          ((eq? e 'sub1) *const)
+          ((eq? e '=) *const)
+          ((eq? e 'and) *const)
+          ((eq? e 'or) *const)
+          (else
+           *identifier))))
+
+(define list-to-action
+  (lambda (e)
+    (let ((fst (car e)))
+      (cond ((atom? fst)
+             (cond ((eq? fst 'lambda) *lambda)
+                   ((eq? fst 'cond) *cond)
+                   ((eq? fst 'quote) *quote)
+                   (else
+                    *application)))
+            (else
+             *application)))))
+
+(define meaning
+  (lambda (e table)
+    ((expression-to-action e) e table)))
+
+(define *const
+  (lambda (e table)
+    (cond ((number? e) e)
+          ((eq? #f e) e)
+          ((eq? #t e) e)
+          (else
+           (build 'primitive e)))))
+
+(define *quote
+  (lambda (e table)
+    (text-of e)))
+
+(define text-of second)
+
+(define *identifier
+  (lambda (e table)
+    (lookup-in-table e table initial-table)))
+
+(define initial-table
+  (lambda (name)
+    (car '())))
+
+(define *lambda
+  (lambda (e table)
+    (build 'non-primitive
+           (cons table
+                 (cdr e)))))
+
+(define *cond
+  (lambda (e table)
+    (letrec ((C (lambda (b)
+                  (let ((fst (Q (car b)))
+                        (snd (A (car b))))
+                    (cond ((else? fst)
+                           (meaning snd table))
+                          ((meaning fst table)
+                           (meaning snd table))
+                          (else
+                           (C (cdr b)))))))
+             (Q first)
+             (A second)
+             (else? (lambda (x)
+                      (cond ((atom? x) (eq? 'else x))
+                            (else #f)))))
+      (C (cdr e)))))
+
+
+(define *application
+  (lambda (e table)
+    (letrec ((evlis (lambda (args)
+                      (cond ((null? args) '())
+                            (else
+                             (cons (meaning (car args) table)
+                                   (evlis (cdr args)))))))
+             (args-of cdr)
+             (func-of car)
+             (extend-table cons)
+             (table-of first)
+             (formals-of second)
+             (body-of third)
+             (primitive? (lambda (f)
+                           (eq? (car f) 'primitive)))
+             (:atom? (lambda (x)
+                       (cond ((atom? x) #t)
+                             ((null? x) #f)
+                             ((eq? (car x) 'primitive) #t)
+                             ((eq? (car x) 'non-primitive) #t)
+                             (else #f))))
+             (plus (lambda (vals)
+                    (cond ((null? vals) 0)
+                          (else
+                           (+ (car vals)
+                               (plus (cdr vals)))))))
+             (minus (lambda (vals)
+                     (cond ((null? vals) 0)
+                           (else
+                            (- (car vals)
+                               (minus (cdr vals)))))))
+             (multiply (lambda (vals)
+                         (cond ((null? vals) 1)
+                               (else
+                                (* (car vals)
+                                   (multiply (cdr vals)))))))
+             (andfun (lambda (vals)
+                       (cond ((null? vals) #t)
+                             (else
+                              (and (car vals)
+                                   (andfun (cdr vals)))))))
+             (orfun (lambda (vals)
+                      (cond ((null? vals) #f)
+                            (else
+                             (or (car vals)
+                                 (orfun (cdr vals)))))))
+             (apply-primitive (lambda (fun vals)
+                                (cond ((eq? fun 'car)
+                                       (car (first vals)))
+                                      ((eq? fun 'cons)
+                                       (cons (first vals) (second vals)))
+                                      ((eq? fun 'cdr)
+                                       (cdr (first vals)))
+                                      ((eq? fun 'eq?)
+                                       (eq? (first vals) (second vals)))
+                                      ((eq? fun 'atom?)
+                                       (:atom? (first vals)))
+                                      ((eq? fun 'number?)
+                                       (number? (first vals)))
+                                      ((eq? fun 'zero?)
+                                       (zero? (first vals)))
+                                      ((eq? fun 'null?)
+                                       (null? (first vals)))
+                                      ((eq? fun '+)
+                                       (plus vals))
+                                      ((eq? fun '-)
+                                       (minus vals))
+                                      ((eq? fun '*)
+                                       (multiply vals))
+                                      ((eq? fun 'add1)
+                                       (add1 (first vals)))
+                                      ((eq? fun 'sub1)
+                                       (sub1 (first vals)))
+                                      ((eq? fun '=)
+                                       (= (first vals) (second vals)))
+                                      ((eq? fun 'and)
+                                       (andfun vals))
+                                      ((eq? fun 'or)
+                                       (orfun vals))
+                                      (else
+                                       *identifier))))
+             (apply-closure (lambda (closure vals)
+                              (meaning (body-of closure)
+                                       (extend-table (build (formals-of closure)
+                                                            vals)
+                                                     (table-of closure)))))
+             (apply (lambda (f ars)
+                      (cond ((primitive? f)
+                             (apply-primitive (second f)
+                                              ars))
+                            (else
+                             (apply-closure (second f)
+                                            ars))))))
+      (apply (meaning (func-of e) table)
+             (evlis (args-of e))))))
+
+
+(define value
+  (lambda (e)
+    (meaning e '())))
+
+(define lookup
+  (lambda (table name)
+    (table name)))
+
+(define extend
+  (lambda (name value table)
+    (lambda (n)
+      (cond ((eq? n name) value)
+            (else
+             (table n))))))
+
+(define define?
+  (lambda (e)
+    (cond ((atom? e) #f)
+          ((atom? (car e))
+           (eq? (car e) 'define))
+          (else #f))))
+
+(define *define
+  (lambda (e)
+    (set! global-table
+          (extend (name-of e)
+                  (box
+                   (the-meaning
+                    (right-side-of e)))
+                  global-table))))
+
+(define box
+  (lambda (it)
+    (lambda (sel)
+      (sel it (lambda (new)
+                (set! it new))))))
+
+(define setbox
+  (lambda (box new)
+    (box (lambda (a b) (b new)))))
+
+(define unbox
+  (lambda (box)
+    (box (lambda (a b) a))))
+
+(define the-meaning
+  (lambda (e)
+    (meaning e lookup-in-global-table)))
+
+(define lookup-in-global-table
+  (lambda (name)
+    (lookup global-table name)))
 
 
 
 
-
-
-
-
-
-
+;;;;;;; To be continued ... ;;;;;;;
 
 
 
